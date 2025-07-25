@@ -1,50 +1,240 @@
-import { useEffect } from "react";
-import "./App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import axios from 'axios';
+import './App.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-const Home = () => {
-  const helloWorldApi = async () => {
+// Dashboard Components
+const Dashboard = () => {
+  const [stats, setStats] = useState({});
+  const [policies, setPolicies] = useState([]);
+  const [devices, setDevices] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
     try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
+      const [statsRes, policiesRes, devicesRes, alertsRes] = await Promise.all([
+        axios.get(`${API}/dashboard/stats`),
+        axios.get(`${API}/policies`),
+        axios.get(`${API}/network/devices`),
+        axios.get(`${API}/alerts`)
+      ]);
+
+      setStats(statsRes.data);
+      setPolicies(policiesRes.data);
+      setDevices(devicesRes.data);
+      setAlerts(alertsRes.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
+  const resolveAlert = async (alertId) => {
+    try {
+      await axios.put(`${API}/alerts/${alertId}/resolve`);
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error resolving alert:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading Security Dashboard...</div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
+    <div className="min-h-screen bg-slate-900 text-white">
+      {/* Header */}
+      <header className="bg-slate-800 border-b border-slate-700 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold">🛡️</span>
+            </div>
+            <h1 className="text-xl font-bold text-white">Campus Web Access Security System</h1>
+          </div>
+          <div className="text-sm text-slate-400">
+            Cisco Virtual Internship | {new Date().toLocaleDateString()}
+          </div>
+        </div>
       </header>
+
+      {/* Hero Section */}
+      <div className="relative bg-gradient-to-r from-indigo-900 to-slate-900 px-6 py-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <h2 className="text-3xl font-bold text-white mb-2">
+                Network Security Dashboard
+              </h2>
+              <p className="text-indigo-200 text-lg mb-6">
+                Comprehensive web filtering and threat protection for campus networks
+              </p>
+              <div className="flex space-x-4">
+                <button className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-colors">
+                  View Policies
+                </button>
+                <button className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors">
+                  Network Topology
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 max-w-md">
+              <img 
+                src="https://images.unsplash.com/photo-1675627453084-505806a00406?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwzfHxjeWJlcnNlY3VyaXR5JTIwZGFzaGJvYXJkfGVufDB8fHx8MTc1MzQ0NTE2Mnww&ixlib=rb-4.1.0&q=85"
+                alt="Cybersecurity Dashboard"
+                className="w-full h-48 object-cover rounded-lg shadow-lg"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="px-6 py-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-slate-400 text-sm">Active Policies</p>
+                  <p className="text-2xl font-bold text-white">{stats.active_policies}</p>
+                </div>
+                <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xl">📋</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-slate-400 text-sm">Network Devices</p>
+                  <p className="text-2xl font-bold text-white">{stats.active_devices}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xl">🌐</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-slate-400 text-sm">Blocked Requests</p>
+                  <p className="text-2xl font-bold text-white">{stats.blocked_requests_today}</p>
+                </div>
+                <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xl">🚫</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-slate-400 text-sm">Unresolved Alerts</p>
+                  <p className="text-2xl font-bold text-white">{stats.unresolved_alerts}</p>
+                </div>
+                <div className="w-12 h-12 bg-yellow-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xl">⚠️</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Alerts */}
+          <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 mb-8">
+            <h3 className="text-lg font-semibold text-white mb-4">Recent Security Alerts</h3>
+            <div className="space-y-3">
+              {alerts.slice(0, 5).map((alert) => (
+                <div key={alert.id} className="flex items-center justify-between p-4 bg-slate-700 rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-3 h-3 rounded-full ${
+                      alert.severity === 'critical' ? 'bg-red-500' :
+                      alert.severity === 'high' ? 'bg-orange-500' :
+                      alert.severity === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}></div>
+                    <div>
+                      <p className="text-white font-medium">{alert.title}</p>
+                      <p className="text-slate-400 text-sm">{alert.source_ip} → {alert.destination}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 text-xs rounded ${
+                      alert.resolved ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'
+                    }`}>
+                      {alert.resolved ? 'Resolved' : 'Active'}
+                    </span>
+                    {!alert.resolved && (
+                      <button
+                        onClick={() => resolveAlert(alert.id)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 text-xs rounded transition-colors"
+                      >
+                        Resolve
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Active Policies */}
+          <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+            <h3 className="text-lg font-semibold text-white mb-4">Active Web Filtering Policies</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {policies.filter(p => p.enabled).map((policy) => (
+                <div key={policy.id} className="bg-slate-700 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-white font-medium">{policy.name}</h4>
+                    <span className={`px-2 py-1 text-xs rounded ${
+                      policy.action === 'allow' ? 'bg-green-600 text-white' :
+                      policy.action === 'block' ? 'bg-red-600 text-white' : 'bg-yellow-600 text-white'
+                    }`}>
+                      {policy.action.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-slate-400 text-sm mb-2">{policy.description}</p>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-indigo-300 text-xs">
+                      {policy.category.replace('_', ' ').toUpperCase()}
+                    </span>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-slate-400 text-xs">
+                      {policy.domains.length} domains
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
+// Main App Component
 function App() {
   return (
     <div className="App">
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
+          <Route path="/" element={<Dashboard />} />
         </Routes>
       </BrowserRouter>
     </div>
