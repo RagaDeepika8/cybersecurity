@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import axios from 'axios';
 import './App.css';
+import PolicyBuilder from './components/PolicyBuilder';
+import NetworkTopology from './components/NetworkTopology';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -13,6 +15,8 @@ const Dashboard = () => {
   const [devices, setDevices] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPolicyBuilder, setShowPolicyBuilder] = useState(false);
+  const [showNetworkTopology, setShowNetworkTopology] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -47,10 +51,38 @@ const Dashboard = () => {
     }
   };
 
+  const handlePolicyCreated = (newPolicy) => {
+    setPolicies(prev => [...prev, newPolicy]);
+    fetchDashboardData(); // Refresh stats
+  };
+
+  const togglePolicyStatus = async (policyId, currentStatus) => {
+    try {
+      await axios.put(`${API}/policies/${policyId}`, { enabled: !currentStatus });
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error updating policy status:', error);
+    }
+  };
+
+  const deletePolicy = async (policyId) => {
+    if (window.confirm('Are you sure you want to delete this policy?')) {
+      try {
+        await axios.delete(`${API}/policies/${policyId}`);
+        fetchDashboardData();
+      } catch (error) {
+        console.error('Error deleting policy:', error);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading Security Dashboard...</div>
+        <div className="text-center">
+          <div className="loading-spinner"></div>
+          <div className="text-white text-xl mt-4">Loading Security Dashboard...</div>
+        </div>
       </div>
     );
   }
@@ -84,10 +116,16 @@ const Dashboard = () => {
                 Comprehensive web filtering and threat protection for campus networks
               </p>
               <div className="flex space-x-4">
-                <button className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-colors">
-                  View Policies
+                <button 
+                  onClick={() => setShowPolicyBuilder(true)}
+                  className="bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-lg transition-colors font-medium"
+                >
+                  Create Policy
                 </button>
-                <button className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors">
+                <button 
+                  onClick={() => setShowNetworkTopology(true)}
+                  className="bg-slate-700 hover:bg-slate-600 px-6 py-3 rounded-lg transition-colors font-medium"
+                >
                   Network Topology
                 </button>
               </div>
@@ -107,7 +145,7 @@ const Dashboard = () => {
       <div className="px-6 py-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-colors">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-400 text-sm">Active Policies</p>
@@ -119,7 +157,7 @@ const Dashboard = () => {
               </div>
             </div>
             
-            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-colors">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-400 text-sm">Network Devices</p>
@@ -131,7 +169,7 @@ const Dashboard = () => {
               </div>
             </div>
             
-            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-colors">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-400 text-sm">Blocked Requests</p>
@@ -143,7 +181,7 @@ const Dashboard = () => {
               </div>
             </div>
             
-            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-colors">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-400 text-sm">Unresolved Alerts</p>
@@ -158,10 +196,16 @@ const Dashboard = () => {
 
           {/* Recent Alerts */}
           <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 mb-8">
-            <h3 className="text-lg font-semibold text-white mb-4">Recent Security Alerts</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Recent Security Alerts</h3>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm text-slate-400">Live Monitoring</span>
+              </div>
+            </div>
             <div className="space-y-3">
               {alerts.slice(0, 5).map((alert) => (
-                <div key={alert.id} className="flex items-center justify-between p-4 bg-slate-700 rounded-lg">
+                <div key={alert.id} className="flex items-center justify-between p-4 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
                   <div className="flex items-center space-x-4">
                     <div className={`w-3 h-3 rounded-full ${
                       alert.severity === 'critical' ? 'bg-red-500' :
@@ -193,20 +237,45 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Active Policies */}
+          {/* Policy Management */}
           <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-            <h3 className="text-lg font-semibold text-white mb-4">Active Web Filtering Policies</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Web Filtering Policies</h3>
+              <button
+                onClick={() => setShowPolicyBuilder(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                + Create Policy
+              </button>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {policies.filter(p => p.enabled).map((policy) => (
-                <div key={policy.id} className="bg-slate-700 rounded-lg p-4">
+              {policies.map((policy) => (
+                <div key={policy.id} className="bg-slate-700 rounded-lg p-4 hover:bg-slate-600 transition-colors">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-white font-medium">{policy.name}</h4>
-                    <span className={`px-2 py-1 text-xs rounded ${
-                      policy.action === 'allow' ? 'bg-green-600 text-white' :
-                      policy.action === 'block' ? 'bg-red-600 text-white' : 'bg-yellow-600 text-white'
-                    }`}>
-                      {policy.action.toUpperCase()}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-2 py-1 text-xs rounded ${
+                        policy.action === 'allow' ? 'bg-green-600 text-white' :
+                        policy.action === 'block' ? 'bg-red-600 text-white' : 'bg-yellow-600 text-white'
+                      }`}>
+                        {policy.action.toUpperCase()}
+                      </span>
+                      <button
+                        onClick={() => togglePolicyStatus(policy.id, policy.enabled)}
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                          policy.enabled ? 'bg-green-600 text-white' : 'bg-slate-600 text-slate-400'
+                        }`}
+                      >
+                        {policy.enabled ? '✓' : '○'}
+                      </button>
+                      <button
+                        onClick={() => deletePolicy(policy.id)}
+                        className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs hover:bg-red-700 transition-colors"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
                   <p className="text-slate-400 text-sm mb-2">{policy.description}</p>
                   <div className="flex items-center space-x-2">
@@ -217,6 +286,10 @@ const Dashboard = () => {
                     <span className="text-slate-400 text-xs">
                       {policy.domains.length} domains
                     </span>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-slate-400 text-xs">
+                      Priority {policy.priority}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -224,6 +297,20 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      {showPolicyBuilder && (
+        <PolicyBuilder
+          onClose={() => setShowPolicyBuilder(false)}
+          onSave={handlePolicyCreated}
+        />
+      )}
+
+      {showNetworkTopology && (
+        <NetworkTopology
+          onClose={() => setShowNetworkTopology(false)}
+        />
+      )}
     </div>
   );
 };
